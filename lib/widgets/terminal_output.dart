@@ -16,9 +16,11 @@ class TerminalOutput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final displayReplies = text.split('>').indexed
+    final replies = text.split('>');
+    final displayReplies = replies.indexed
       .map((reply) => (
           command: commands[reply.$1],
+          isComplete: reply.$1 < replies.length - 1,
           timestamp: timestamps[reply.$1],
           text: reply.$2
             .replaceAll('\r\n', '\n')
@@ -56,7 +58,10 @@ class TerminalOutput extends StatelessWidget {
           return CommandListItem(
             command: command,
             timestamp: timestampWidget,
-            response: response,
+            response: command.renderResponse(
+              reply.text,
+              isComplete: reply.isComplete,
+            ),
             contentPadding: const EdgeInsets.symmetric(vertical: 8),
           );
         }

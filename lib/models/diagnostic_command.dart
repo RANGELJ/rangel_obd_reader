@@ -1,13 +1,36 @@
+import 'package:flutter/widgets.dart';
+import 'package:rangel_obd_reader/command_widgeds/default_command_response.dart';
+import 'package:rangel_obd_reader/command_widgeds/pending_codes_response.dart';
+import 'package:rangel_obd_reader/command_widgeds/permanent_codes_response.dart';
+import 'package:rangel_obd_reader/command_widgeds/stored_codes_response.dart';
+
 class DiagnosticCommand {
   const DiagnosticCommand({
     required this.command,
     required this.name,
     required this.description,
+    this.responseBuilder,
   });
 
   final String command;
   final String name;
   final String description;
+  final Widget Function(String response)? responseBuilder;
+
+  Widget renderResponse(String response, {bool isComplete = true}) {
+    final lines = response
+        .replaceAll('\r\n', '\n')
+        .replaceAll('\r', '\n')
+        .trim()
+        .split('\n');
+    if (lines.first.trim() == command) {
+      lines.removeAt(0);
+    }
+    final responseWithoutEcho = lines.join('\n').trim();
+    return isComplete
+      ? (responseBuilder ?? DefaultCommandResponse.new)(responseWithoutEcho)
+        : DefaultCommandResponse(responseWithoutEcho);
+  }
 
   static const scannerCommands = [
     DiagnosticCommand(
@@ -53,16 +76,19 @@ class DiagnosticCommand {
       command: "07",
       name: "Read pending trouble codes",
       description: "List pending emissions-related trouble codes.",
+      responseBuilder: PendingCodesResponse.new,
     ),
     DiagnosticCommand(
       command: "03",
       name: "Read stored trouble codes",
       description: "List stored emissions-related trouble codes.",
+      responseBuilder: StoredCodesResponse.new,
     ),
     DiagnosticCommand(
       command: "0A",
       name: "Read permanent trouble codes",
       description: "List permanent emissions-related trouble codes.",
+      responseBuilder: PermanentCodesResponse.new,
     )
   ];
 }

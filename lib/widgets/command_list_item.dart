@@ -51,27 +51,7 @@ class CommandListItem extends StatelessWidget {
           Text(command.description),
           if (response != null) ...[
             const SizedBox(height: 8),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                border: Border(
-                  left: BorderSide(
-                    color: Theme.of(context).colorScheme.outlineVariant,
-                    width: 3,
-                  ),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Response', style: Theme.of(context).textTheme.labelSmall),
-                  const SizedBox(height: 4),
-                  response!,
-                ],
-              ),
-            ),
+            response!,
           ],
         ],
       ),
