@@ -1,0 +1,81 @@
+import 'package:flutter/material.dart';
+import 'package:rangel_obd_reader/models/diagnostic_command.dart';
+
+class CommandListItem extends StatelessWidget {
+  const CommandListItem({
+    super.key,
+    required this.command,
+    this.timestamp,
+    this.response,
+    this.onTap,
+    this.contentPadding = const EdgeInsets.symmetric(
+      horizontal: 16,
+      vertical: 8,
+    ),
+  });
+
+  final DiagnosticCommand command;
+  final Widget? timestamp;
+  final Widget? response;
+  final VoidCallback? onTap;
+  final EdgeInsetsGeometry contentPadding;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: contentPadding,
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  command.command,
+                  style: const TextStyle(fontFamily: 'monospace'),
+                ),
+              ),
+              if (timestamp != null) ...[
+                const SizedBox(width: 16),
+                timestamp!,
+              ],
+            ],
+          ),
+          Text(command.name),
+        ],
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(command.description),
+          if (response != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                border: Border(
+                  left: BorderSide(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                    width: 3,
+                  ),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Response', style: Theme.of(context).textTheme.labelSmall),
+                  const SizedBox(height: 4),
+                  response!,
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+      onTap: onTap,
+    );
+  }
+}

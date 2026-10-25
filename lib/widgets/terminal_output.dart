@@ -1,19 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:rangel_obd_reader/models/diagnostic_command.dart';
+import 'package:rangel_obd_reader/widgets/command_list_item.dart';
 
 class TerminalOutput extends StatelessWidget {
   const TerminalOutput({
     super.key,
     required this.text,
     this.timestamps = const {},
+    this.commands = const {},
   });
 
   final String text;
   final Map<int, DateTime> timestamps;
+  final Map<int, DiagnosticCommand> commands;
 
   @override
   Widget build(BuildContext context) {
     final displayReplies = text.split('>').indexed
       .map((reply) => (
+          command: commands[reply.$1],
           timestamp: timestamps[reply.$1],
           text: reply.$2
             .replaceAll('\r\n', '\n')
@@ -38,20 +43,31 @@ class TerminalOutput extends StatelessWidget {
         final timeLabel = timestamp == null
             ? '--:--:--'
             : timestamp.toIso8601String().substring(11, 23);
+        final timestampWidget = Text(
+          timeLabel,
+          style: const TextStyle(fontFamily: 'monospace'),
+        );
+        final response = SelectableText(
+          reply.text,
+          style: const TextStyle(fontFamily: 'monospace'),
+        );
+        final command = reply.command;
+        if (command != null) {
+          return CommandListItem(
+            command: command,
+            timestamp: timestampWidget,
+            response: response,
+            contentPadding: const EdgeInsets.symmetric(vertical: 8),
+          );
+        }
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: SelectableText(
-                reply.text,
-                style: const TextStyle(fontFamily: 'monospace'),
-              ),
+              child: response,
             ),
             const SizedBox(width: 16),
-            Text(
-              timeLabel,
-              style: const TextStyle(fontFamily: 'monospace'),
-            ),
+            timestampWidget,
           ],
         );
       },
