@@ -3,6 +3,8 @@ import 'package:rangel_obd_reader/command_widgeds/default_command_response.dart'
 import 'package:rangel_obd_reader/command_widgeds/driving_cycle_response.dart';
 import 'package:rangel_obd_reader/command_widgeds/emissions_readiness_response.dart';
 import 'package:rangel_obd_reader/command_widgeds/engine_speed_response.dart';
+import 'package:rangel_obd_reader/command_widgeds/mass_air_flow_response.dart';
+import 'package:rangel_obd_reader/command_widgeds/misfire_tests_response.dart';
 import 'package:rangel_obd_reader/command_widgeds/pending_codes_response.dart';
 import 'package:rangel_obd_reader/command_widgeds/permanent_codes_response.dart';
 import 'package:rangel_obd_reader/command_widgeds/stored_codes_response.dart';
@@ -60,14 +62,53 @@ class DiagnosticCommand {
       name: 'Set CAN 11/500',
       description: '11-bit CAN at 500 kbit/s. Compatible with 2012 Fiesta.',
     ),
+    DiagnosticCommand(
+      command: 'ATSH7E0',
+      name: 'Address the engine computer',
+      description: 'Set the CAN request address to 7E0 for Ford diagnostic tests.',
+    ),
+    DiagnosticCommand(
+      command: 'ATFCSH7E0',
+      name: 'Set flow-control address',
+      description: 'Send multi-frame flow-control replies to the engine computer at 7E0.',
+    ),
+    DiagnosticCommand(
+      command: 'ATFCSD300014',
+      name: 'Set multi-frame pacing',
+      description: 'Request 20 ms between response frames so this adapter can keep up.',
+    ),
+    DiagnosticCommand(
+      command: 'ATFCSM1',
+      name: 'Enable custom flow control',
+      description: 'Use the configured flow-control address and pacing.',
+    ),
+    DiagnosticCommand(
+      command: 'ATSTFF',
+      name: 'Allow longer adapter responses',
+      description: 'Increase the adapter timeout for Ford diagnostic requests.',
+    ),
   ];
 
   static const carCommands = [
+    DiagnosticCommand(
+      command: '190203',
+      name: 'Monitor misfire and coil test failures',
+      description: 'Read tests failing now or failed this driving cycle, including '
+          'cylinders 1-4 and ignition coils. Not live misfire counters. '
+          'First configure scanner address 7E0, flow control, and the longer timeout.',
+      responseBuilder: MisfireTestsResponse.new,
+    ),
     DiagnosticCommand(
       command: '010C',
       name: 'Read engine RPM',
       description: 'Read current engine speed in revolutions per minute.',
       responseBuilder: EngineSpeedResponse.new,
+    ),
+    DiagnosticCommand(
+      command: '0110',
+      name: 'Read mass air flow (MAF)',
+      description: 'Read intake air mass flow in grams per second.',
+      responseBuilder: MassAirFlowResponse.new,
     ),
     DiagnosticCommand(
       command: '0100',
