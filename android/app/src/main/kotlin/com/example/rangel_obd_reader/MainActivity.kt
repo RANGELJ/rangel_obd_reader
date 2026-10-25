@@ -40,7 +40,52 @@ class MainActivity : FlutterActivity() {
                 "requestPermission" -> request_permission(result)
                 "getBondedDevices" -> get_bonded_devices(result)
                 "connectDevice" -> connect_device(call.argument<String>("address")!!, result)
+                "sendCommand" -> send_command(call.argument<String>("command")!!, result)
                 else -> result.notImplemented()
+            }
+        }
+
+        EventChannel(messenger, "obd/bt/data").setStreamHandler(
+            object : EventChannel.StreamHandler {
+                override fun onListen(
+                    arguments: Any?,
+                    events: EventChannel.EventSink,
+                ) {
+                    event_sink = events
+                }
+
+                override fun onCancel(arguments: Any?) {
+                    event_sink = null
+                }
+            }
+        )
+    }
+
+    private fun send_command(command: String, result: MethodChannel.Result) {
+        when (command) {
+            "ATI" -> Unit
+            else -> {
+                result.error("command_blocked", "Only ATI is allowed for now", null)
+                return
+            }
+        }
+
+        val socket = bluetooth_socket
+        if (socket == null) {
+            result.error("not_connected", "Connect to the adapter first", null)
+            return
+        }
+
+        thread {
+            try {
+                val bytes = (command + "\r").toByteArray(Charsets.US_ASCII)
+                socket.outputStream.write(bytes)
+                socket.outputStream.flush()
+                main_thread.post { result.success(null) }
+            } catch (exception: java.io.IOException) {
+                main_thread.post {
+                    result.error("send_failed", exception.message, null)
+                }
             }
         }
     }
@@ -57,9 +102,45 @@ class MainActivity : FlutterActivity() {
                 bluetooth_socket = socket
                 output_stream = socket.outputStream
                 main_thread.post { result.success(null) }
+                start_reading(socket)
             } catch (e: Exception) {
                 close_connection()
                 main_thread.post { result.error("connect_failed", e.message, null) }
+            }
+        }
+    }
+
+    private fun start_reading(socket: BluetoothSocket) {
+        thread {
+            try {
+                val input = socket.inputStream
+                val buffer = ByteArray(1024)
+
+                while (true) {
+                    val byte_count = input.read(buffer)
+                    if (byte_count == -1) break
+
+                    val chunk = String(buffer, 0, byte_count, Charsets.US_ASCII)
+                    main_thread.post {
+                        if (bluetooth_socket === socket) {
+                            event_sink?.success(chunk)
+                        }
+                    }
+                }
+
+                main_thread.post {
+                    if (bluetooth_socket === socket) {
+                        event_sink?.endOfStream()
+                        close_connection()
+                    }
+                }
+            } catch (exception: java.io.IOException) {
+                main_thread.post {
+                    if (bluetooth_socket === socket) {
+                        event_sink?.error("read_failed", exception.message, null)
+                        close_connection()
+                    }
+                }
             }
         }
     }
