@@ -1,8 +1,15 @@
 import 'package:flutter/widgets.dart';
 import 'package:rangel_obd_reader/command_widgeds/default_command_response.dart';
+import 'package:rangel_obd_reader/command_widgeds/driving_cycle_response.dart';
+import 'package:rangel_obd_reader/command_widgeds/emissions_readiness_response.dart';
+import 'package:rangel_obd_reader/command_widgeds/engine_speed_response.dart';
 import 'package:rangel_obd_reader/command_widgeds/pending_codes_response.dart';
 import 'package:rangel_obd_reader/command_widgeds/permanent_codes_response.dart';
 import 'package:rangel_obd_reader/command_widgeds/stored_codes_response.dart';
+import 'package:rangel_obd_reader/command_widgeds/supported_data_response.dart';
+
+// Documented codes
+// https://en.wikipedia.org/wiki/OBD-II_PIDs
 
 class DiagnosticCommand {
   const DiagnosticCommand({
@@ -57,20 +64,29 @@ class DiagnosticCommand {
 
   static const carCommands = [
     DiagnosticCommand(
+      command: '010C',
+      name: 'Read engine RPM',
+      description: 'Read current engine speed in revolutions per minute.',
+      responseBuilder: EngineSpeedResponse.new,
+    ),
+    DiagnosticCommand(
       command: '0100',
       name: 'Read supported data',
       description: 'Query supported live-data identifiers 01-20 (hex). '
           'A valid reply confirms the engine computer is responding.',
+        responseBuilder: SupportedDataResponse.new,
     ),
     DiagnosticCommand(
       command: "0101",
       name: "Emissions-monitor readiness",
       description: "Emissions-monitor readiness since codes were last cleared, plus check-engine-light status and stored-code count",
+      responseBuilder: EmissionsReadinessResponse.new,
     ),
     DiagnosticCommand(
       command: "0141",
       name: "Monitor completion",
       description: "Monitor completion during the current driving cycle",
+      responseBuilder: DrivingCycleResponse.new,
     ),
     DiagnosticCommand(
       command: "07",
