@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:rangel_obd_reader/models/diagnostic_command.dart';
 import 'package:rangel_obd_reader/widgets/command_list_item.dart';
+import 'package:rangel_obd_reader/widgets/pulsing_command_item.dart';
 
 class TerminalOutput extends StatelessWidget {
   const TerminalOutput({
@@ -8,29 +9,47 @@ class TerminalOutput extends StatelessWidget {
     required this.text,
     this.timestamps = const {},
     this.commands = const {},
+    this.replyGroups = const {},
+    this.activeReplyIndex,
+    this.actionsEnabled = true,
+    this.onHold,
+    this.onCancelHold,
   });
 
   final String text;
   final Map<int, DateTime> timestamps;
   final Map<int, DiagnosticCommand> commands;
+  final Map<int, int> replyGroups;
+  final int? activeReplyIndex;
+  final bool actionsEnabled;
+  final void Function(DiagnosticCommand command, int replyIndex)? onHold;
+  final VoidCallback? onCancelHold;
 
   @override
   Widget build(BuildContext context) {
     final replies = text.split('>');
-    final displayReplies = replies.indexed
-      .map((reply) => (
-          command: commands[reply.$1],
-          isComplete: reply.$1 < replies.length - 1,
-          timestamp: timestamps[reply.$1],
-          text: reply.$2
-            .replaceAll('\r\n', '\n')
-            .replaceAll('\r', '\n')
-            .trim(),
-        ))
-      .where((reply) => reply.text.isNotEmpty)
-      .toList()
-      .reversed
-      .toList();
+    final groupedReplies = <int, ({
+      DiagnosticCommand? command,
+      bool isComplete,
+      DateTime? timestamp,
+      String text,
+    })>{};
+    for (final reply in replies.indexed) {
+      final replyText = reply.$2
+          .replaceAll('\r\n', '\n')
+          .replaceAll('\r', '\n')
+          .trim();
+      if (replyText.isEmpty) continue;
+      final groupIndex = replyGroups[reply.$1] ?? reply.$1;
+      groupedReplies[groupIndex] = (
+        command: commands[reply.$1] ?? commands[groupIndex],
+        isComplete: reply.$1 < replies.length - 1,
+        timestamp: timestamps[reply.$1],
+        text: replyText,
+      );
+    }
+    final displayReplies = groupedReplies.entries.toList()
+      ..sort((firstReply, secondReply) => secondReply.key.compareTo(firstReply.key));
 
     return ListView.separated(
       padding: const EdgeInsets.all(16),
@@ -40,7 +59,8 @@ class TerminalOutput extends StatelessWidget {
         if (displayReplies.isEmpty) {
           return const SelectableText('Waiting for data...');
         }
-        final reply = displayReplies[replyIndex];
+        final entry = displayReplies[replyIndex];
+        final reply = entry.value;
         final timestamp = reply.timestamp;
         final timeLabel = timestamp == null
             ? '--:--:--'
@@ -55,14 +75,31 @@ class TerminalOutput extends StatelessWidget {
         );
         final command = reply.command;
         if (command != null) {
-          return CommandListItem(
-            command: command,
-            timestamp: timestampWidget,
-            response: command.renderResponse(
-              reply.text,
-              isComplete: reply.isComplete,
+          final active = entry.key == activeReplyIndex;
+          return PulsingCommandItem(
+            key: ValueKey(entry.key),
+            active: active,
+            child: CommandListItem(
+              command: command,
+              timestamp: timestampWidget,
+              response: command.renderResponse(
+                reply.text,
+                isComplete: reply.isComplete,
+              ),
+              actions: Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: active
+                      ? onCancelHold
+                      : actionsEnabled && reply.isComplete && onHold != null
+                          ? () => onHold!(command, entry.key)
+                          : null,
+                  icon: Icon(active ? Icons.stop : Icons.repeat),
+                  label: Text(active ? 'Cancel reading' : 'Hold reading'),
+                ),
+              ),
+              contentPadding: const EdgeInsets.all(8),
             ),
-            contentPadding: const EdgeInsets.symmetric(vertical: 8),
           );
         }
         return Row(

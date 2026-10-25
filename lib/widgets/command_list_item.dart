@@ -7,6 +7,7 @@ class CommandListItem extends StatelessWidget {
     required this.command,
     this.timestamp,
     this.response,
+    this.actions,
     this.onTap,
     this.contentPadding = const EdgeInsets.symmetric(
       horizontal: 16,
@@ -17,6 +18,7 @@ class CommandListItem extends StatelessWidget {
   final DiagnosticCommand command;
   final Widget? timestamp;
   final Widget? response;
+  final Widget? actions;
   final VoidCallback? onTap;
   final EdgeInsetsGeometry contentPadding;
 
@@ -52,6 +54,10 @@ class CommandListItem extends StatelessWidget {
           if (response != null) ...[
             const SizedBox(height: 8),
             response!,
+          ],
+          if (actions != null) ...[
+            const SizedBox(height: 8),
+            actions!,
           ],
         ],
       ),
