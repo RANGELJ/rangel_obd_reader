@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:rangel_obd_reader/widgets/command_input.dart';
 import 'package:rangel_obd_reader/widgets/terminal_output.dart';
 
 class TerminalPage extends StatefulWidget {
@@ -18,35 +19,55 @@ class TerminalPage extends StatefulWidget {
 class _TerminalPageState extends State<TerminalPage> {
   static const _dataChannel = EventChannel('obd/bt/data');
   static const _commandChannel = MethodChannel('obd/bt');
-  final _commandController = TextEditingController();
   bool _sending = false;
 
   StreamSubscription<String>? _subscription;
   String _receivedText = '';
+  final _replyTimestamps = <int, DateTime>{};
 
   @override
   void initState() {
     super.initState();
     _subscription = _dataChannel.receiveBroadcastStream().cast<String>().listen(
-      (String chunk) {
-        if (kDebugMode) {
-            debugPrint('[OBD RX] ${jsonEncode(chunk)}');
-        }
-        if (!mounted) return;
-        setState(() => _receivedText += chunk);
-      },
+      _receiveChunk,
       onError: (Object error) {
         if (!mounted) return;
-        setState(() => _receivedText += '\n[Channel error: $error]\n');
+        setState(() => _appendReceivedText('\n[Channel error: $error]\n'));
       },
     );
   }
 
-  Future<void> _sendCommand() async {
+  @override
+  void reassemble() {
+    super.reassemble();
+    _subscription?.onData(_receiveChunk);
+  }
+
+  void _receiveChunk(String chunk) {
+    if (kDebugMode) {
+      debugPrint('[OBD RX] ${jsonEncode(chunk)}');
+    }
+    if (!mounted) return;
+    setState(() => _appendReceivedText(chunk));
+  }
+
+  void _appendReceivedText(String chunk) {
+    var replyIndex = '>'.allMatches(_receivedText).length;
+    final receivedAt = DateTime.now();
+    for (final part in chunk.split('>')) {
+      if (part.trim().isNotEmpty) {
+        _replyTimestamps.putIfAbsent(replyIndex, () => receivedAt);
+      }
+      replyIndex++;
+    }
+    _receivedText += chunk;
+  }
+
+  Future<void> _sendCommand(String command) async {
     setState(() => _sending = true);
     try {
         await _commandChannel.invokeMethod<void>('sendCommand', {
-            'command': _commandController.text,
+            'command': command,
         });
     } on PlatformException catch (error) {
         if (!mounted) return;
@@ -61,7 +82,6 @@ class _TerminalPageState extends State<TerminalPage> {
   @override
   void dispose() {
     _subscription?.cancel();
-    _commandController.dispose();
     super.dispose();
   }
 
@@ -72,32 +92,16 @@ class _TerminalPageState extends State<TerminalPage> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-            Expanded(
-                child: TerminalOutput(text: _receivedText),
+          CommandInput(
+            sending: _sending,
+            onSend: _sendCommand,
             ),
-            SafeArea(
-                top: false,
-                child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                    children: [
-                        Expanded(
-                            child: TextField(
-                                controller: _commandController,
-                                autocorrect: false,
-                                enableSuggestions: false,
-                                decoration: const InputDecoration(labelText: 'Command'),
-                            ),
-                        ),
-                        IconButton(
-                        tooltip: 'Send command',
-                        onPressed: _sending ? null : _sendCommand,
-                        icon: const Icon(Icons.send),
-                        ),
-                    ],
-                    ),
+                Expanded(
+                  child: TerminalOutput(
+                    text: _receivedText,
+                    timestamps: _replyTimestamps,
+                  ),
                 ),
-            ),
         ],
     ),
     );

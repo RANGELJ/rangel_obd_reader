@@ -64,8 +64,10 @@ class MainActivity : FlutterActivity() {
     private fun send_command(command: String, result: MethodChannel.Result) {
         when (command) {
             "ATI" -> Unit
+            "ATE0" -> Unit
+            "ATDP" -> Unit
             else -> {
-                result.error("command_blocked", "Only ATI is allowed for now", null)
+                result.error("command_blocked", "Invalid command", null)
                 return
             }
         }
