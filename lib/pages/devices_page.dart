@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:rangel_obd_reader/pages/terminal_page.dart';
 
 enum LoadStatus { loading, ready, error }
 
@@ -21,6 +22,7 @@ class _DevicesPageState extends State<DevicesPage> {
   LoadStatus status = LoadStatus.loading;
   List<BluetoothDevice> devices = [];
   String? errorMessage;
+  String? connectingAddress;
 
   @override
   void initState() {
@@ -49,6 +51,26 @@ class _DevicesPageState extends State<DevicesPage> {
     }
   }
 
+  Future<void> connect(BluetoothDevice d) async {
+    setState(() => connectingAddress = d.address);
+    try {
+      await _channel.invokeMethod('connectDevice', {'address': d.address});
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => TerminalPage(deviceName: d.name ?? d.address),
+        ),
+      );
+    } on PlatformException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Connect failed: ${e.message}')),
+      );
+    } finally {
+      if (mounted) setState(() => connectingAddress = null);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -62,17 +84,25 @@ class _DevicesPageState extends State<DevicesPage> {
         LoadStatus.loading => const Center(child: CircularProgressIndicator()),
         LoadStatus.error => Center(child: Text(errorMessage ?? 'unknown error')),
         LoadStatus.ready => devices.isEmpty
-            ? const Center(child: Text('No paired devices. Pair your adapter in Android settings.'))
-            : ListView.builder(
-                itemCount: devices.length,
-                itemBuilder: (context, i) {
-                  final d = devices[i];
-                  return ListTile(
-                    title: Text(d.name ?? '(no name)'),
-                    subtitle: Text(d.address),
-                  );
-                },
-              ),
+          ? const Center(child: Text('No paired devices. Pair your adapter in Android settings.'))
+          : ListView.builder(
+              itemCount: devices.length,
+              itemBuilder: (context, i) {
+                final d = devices[i];
+                return ListTile(
+                  title: Text(d.name ?? '(no name)'),
+                  subtitle: Text(d.address),
+                  trailing: connectingAddress == d.address
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : null,
+                  onTap: connectingAddress == null ? () => connect(d) : null,
+                );
+              },
+            ),
       },
     );
   }

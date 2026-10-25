@@ -26,6 +26,11 @@ class MainActivity : FlutterActivity() {
     private var pending_permission_result: MethodChannel.Result? = null
     private val bluetooth_permission_request_code = 1827
 
+    override fun onDestroy() {
+      close_connection()
+      super.onDestroy()
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         val messenger = flutterEngine.dartExecutor.binaryMessenger
@@ -34,9 +39,35 @@ class MainActivity : FlutterActivity() {
             when (call.method) {
                 "requestPermission" -> request_permission(result)
                 "getBondedDevices" -> get_bonded_devices(result)
+                "connectDevice" -> connect_device(call.argument<String>("address")!!, result)
                 else -> result.notImplemented()
             }
         }
+    }
+
+    @Suppress("MissingPermission")
+    private fun connect_device(address: String, result: MethodChannel.Result) {
+        thread {
+            try {
+                close_connection()
+                val adapter = bluetooth_adapter()!!
+                val socket = adapter.getRemoteDevice(address)
+                    .createRfcommSocketToServiceRecord(serial_port_profile)
+                socket.connect()
+                bluetooth_socket = socket
+                output_stream = socket.outputStream
+                main_thread.post { result.success(null) }
+            } catch (e: Exception) {
+                close_connection()
+                main_thread.post { result.error("connect_failed", e.message, null) }
+            }
+        }
+    }
+
+    private fun close_connection() {
+        try { bluetooth_socket?.close() } catch (_: Exception) {}
+        bluetooth_socket = null
+        output_stream = null
     }
 
     private fun has_permission(): Boolean =
